@@ -1,0 +1,162 @@
+/*Checking the Data*/
+SELECT *
+FROM dsj
+ORDER BY index
+
+/*Looking for null values*/
+SELECT 
+	SUM (CASE WHEN index is null then 1 else 0 end) as index,
+	SUM (CASE WHEN job_title is null then 1 else 0 end) as job_title,
+	SUM (CASE WHEN salary_estimate is null then 1 else 0 end) as salary_estimate,
+	SUM (CASE WHEN job_description is null then 1 else 0 end) as job_description,
+	SUM (CASE WHEN rating is null then 1 else 0 end) as rating,
+	SUM (CASE WHEN company_name is null then 1 else 0 end) as company_name,
+	SUM (CASE WHEN location is null then 1 else 0 end) as location,
+	SUM (CASE WHEN headquarters is null then 1 else 0 end) as headquarters,
+	SUM (CASE WHEN size is null then 1 else 0 end) as size,
+	SUM (CASE WHEN founded is null then 1 else 0 end) as founded,
+	SUM (CASE WHEN type_of_ownership is null then 1 else 0 end) as type_of_ownership,
+	SUM (CASE WHEN industry is null then 1 else 0 end) as industry,
+	SUM (CASE WHEN sector is null then 1 else 0 end) as sector,
+	SUM (CASE WHEN revenue is null then 1 else 0 end) as revenue,
+	SUM (CASE WHEN competitors is null then 1 else 0 end) as competitors
+from dsj
+
+/*Looking duplicate values*/
+SELECT job_title, salary_estimate,job_description, rating, company_name, location, headquarters, size, founded, type_of_ownership, industry, sector, revenue, COUNT(*) as num_repeticiones 
+FROM dsj 
+GROUP BY  job_title,salary_estimate, job_description, rating, company_name, location, headquarters, size, founded, type_of_ownership, industry, sector, revenue
+HAVING COUNT(*)>1
+Order by job_description
+
+/*deleting duplicate values*/
+WITH tt AS (
+SELECT *, row_number() over(partition by job_title, salary_estimate,job_description, rating, company_name, location, headquarters, size, founded, type_of_ownership, industry, sector, revenue) as row
+FROM dsj)
+
+DELETE FROM dsj
+WHERE index in (select index from tt where row >1 )
+
+/*Removing Number in Company Name*/
+select right (company_name,4) 
+from dsj
+
+UPDATE dsj 
+SET company_name = REPLACE( company_name, RIGHT(company_name, 4), '')
+
+/*Creating Salary fields (Min, Max, AVG)*/
+select cast(split_part(left(split_part (salary_estimate,'-',1),-1),'$',2) as numeric) as min,
+		cast(split_part(split_part(split_part (salary_estimate,'-',2),'K',1),'$',2) as numeric) as max
+from dsj
+
+ALTER TABLE dsj
+ADD salary_min numeric
+
+UPDATE dsj
+SET salary_min = cast(split_part(left(split_part (salary_estimate,'-',1),-1),'$',2) as numeric)
+
+ALTER TABLE dsj
+ADD salary_max numeric
+
+UPDATE dsj
+SET salary_max = cast(split_part(split_part(split_part (salary_estimate,'-',2),'K',1),'$',2) as numeric)
+
+ALTER TABLE dsj
+ADD salary_avg numeric
+
+UPDATE dsj
+SET salary_avg = round((salary_max + salary_min)/2,2) 
+
+/*Create New Columns Based on Skill required for Job (Python,Excel,Sql,
+Tableau,Sparx,Hadoop,Aws, etc) If Job description Contain Those 
+skill in column print '1' otherwise '0' will print*/dsj.salary_avg
+
+select case
+when job_description ilike '%python%' THEN 1 ELSE 0 END, job_description
+from dsj
+
+select count (job_description)
+from dsj
+where job_description ilike '%python%'
+
+ALTER TABLE dsj
+ADD python numeric, 
+ADD excel numeric, 
+ADD sql numeric, 
+ADD sparx numeric, 
+ADD hadoop numeric, 
+ADD aws numeric, 
+ADD tableau numeric, 
+ADD big_data numeric
+
+UPDATE dsj
+SET 
+python = case when job_description ilike '%python%' THEN 1 ELSE 0 END,
+excel = case when job_description ilike '%excel%' THEN 1 ELSE 0 END,
+sql = case when job_description ilike '%sql%' THEN 1 ELSE 0 END,
+sparx = case when job_description ilike '%sparx%' THEN 1 ELSE 0 END,
+hadoop = case when job_description ilike '%hadoop%' THEN 1 ELSE 0 END,
+aws = case when job_description ilike '%aws%' THEN 1 ELSE 0 END,
+tableau = case when job_description ilike '%tableau%' THEN 1 ELSE 0 END,
+big_data = case when job_description ilike '%big_data%' THEN 1 ELSE 0 END
+
+/*Create New Column State Using 'Location' column*/
+SELECT location, count (*)
+from dsj
+where location not like '%,%'
+group by location
+order by count (*) DESC
+
+SELECT location, count (*),
+case 
+when location ilike 'united states' then 'US'
+when location ilike 'Remote' then 'null'
+when location ilike 'New Jersey' then 'NJ'
+when location ilike 'Utah' then 'UT' 
+when location ilike 'California' then 'CA'
+when location ilike 'Texas' then 'TX'
+when location ilike '%,%' then right (location,2) end
+from dsj
+group by 
+order by count (*) DESC
+
+ALTER TABLE dsj
+ADD job_state text
+
+UPDATE dsj
+SET job_state =  case 
+when location ilike 'united states' then 'US'
+when location ilike 'Remote' then 'null'
+when location ilike 'New Jersey' then 'NJ'
+when location ilike 'Utah' then 'UT' 
+when location ilike 'California' then 'CA'
+when location ilike 'Texas' then 'TX'
+when location ilike '%,%' then right (location,2) end
+
+/*Create New Colum Employeetype Based on ['Job Titile']
+Based on the job title tag like sr, senior,lead,vp...etc find the employee is Senior or junior*/
+
+select case
+when job_title ilike '%sr%' 
+or job_title ilike '%senior%'
+or job_title ilike '%lead%'
+or job_title ilike '%principal%'
+or job_title ilike '%vp%'
+or job_title ilike '%vice president%'
+or job_title ilike '%director%'
+THEN 'senior_emp' ELSE 'junior_emp' END
+from dsj
+
+ALTER TABLE dsj
+ADD employee_exp TEXT
+
+UPDATE dsj
+SET employee_exp =  case
+when job_title ilike '%sr%' 
+or job_title ilike '%senior%'
+or job_title ilike '%lead%'
+or job_title ilike '%principal%'
+or job_title ilike '%vp%'
+or job_title ilike '%vice president%'
+or job_title ilike '%director%'
+THEN 'senior_emp' ELSE 'junior_emp' END
