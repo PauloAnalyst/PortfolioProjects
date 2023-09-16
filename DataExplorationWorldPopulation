@@ -1,0 +1,128 @@
+/*Delete "World" from table*/
+DELETE FROM twp
+WHERE twp."Name" = 'World'
+
+/*Which country has the highest population in the last year?*/
+
+SELECT "Name", "Population"
+FROM twp
+WHERE "Year" = (SELECT MAX ("Year") FROM twp) 
+ORDER BY "Population" DESC
+LIMIT 1
+
+/*Which country has the least number of people in the last year?*/
+
+SELECT "Name", "Population"
+FROM twp
+WHERE "Year" = (SELECT MAX ("Year") FROM twp) 
+ORDER BY "Population" ASC
+LIMIT 1
+
+/*Which country is witnessing the highest population growth in the last year?*/
+
+SELECT "Name", "Annual_Growth_Rate_%"
+FROM twp
+WHERE "Year" = (SELECT MAX ("Year") FROM twp) 
+ORDER BY "Annual_Growth_Rate_%" DESC
+LIMIT 1
+
+/*Which is the most densely populated country in the world in the last year?*/
+SELECT "Name", "Population_Density"
+FROM twp
+WHERE "Year" = (SELECT MAX ("Year") FROM twp) 
+ORDER BY "Population_Density" DESC
+LIMIT 10
+
+/*What is the Annual Grow rate for Peru in the last 30 years?*/
+SELECT "Name", "Year","Population", LAG("Population",1)OVER(), ROUND(("Population" - LAG("Population",1)OVER())/"Population"*100,2)
+FROM twp
+WHERE "Year" BETWEEN (SELECT MAX ("Year") FROM twp)-29 
+AND (SELECT MAX ("Year") FROM twp)
+AND "Name" = 'Peru'
+--ORDER BY "Population_Density" DESC
+--LIMIT 30
+
+/* What year has the most Annual Grow rate in Peru?*/
+SELECT tt.Year, tt.GrowRate
+FROM (SELECT "Year" as Year, ROUND(("Population" - LAG("Population",1)OVER())/"Population"*100,2) AS GrowRate
+		FROM twp
+	  	WHERE "Name" = 'Peru'
+		ORDER BY GrowRate DESC) AS tt
+WHERE GrowRate is not null
+ORDER BY GrowRate DESC
+LIMIT 1
+
+/*How many countries has listed during the years in the Data?*/
+SELECT "Year", COUNT(DISTINCT "Name")
+FROM twp
+WHERE "Year">0
+GROUP BY "Year"
+
+/*Most Male, Most Female*/
+WITH MM AS (
+SELECT "Name", MAX("Male_Population") AS MAXG
+FROM twp
+WHERE "Year" = (SELECT MAX ("Year") FROM twp) 
+GROUP BY "Name"
+ORDER BY MAXG DESC
+LIMIT 1),
+
+MF AS(
+SELECT "Name", MAX("Female_Population") AS MAXG
+FROM twp
+WHERE "Year" = (SELECT MAX ("Year") FROM twp) 
+GROUP BY "Name"
+ORDER BY MAXG DESC
+LIMIT 1)
+
+SELECT *
+FROM MM
+UNION
+SELECT *
+FROM MF
+
+/*Least Male, Least Female*/
+WITH MM AS (
+SELECT "Name", MIN("Male_Population") AS MING
+FROM twp
+WHERE "Year" = (SELECT MAX ("Year") FROM twp) 
+GROUP BY "Name"
+ORDER BY MING ASC
+LIMIT 1),
+
+MF AS(
+SELECT "Name", MIN("Female_Population") AS MING
+FROM twp
+WHERE "Year" = (SELECT MAX ("Year") FROM twp) 
+GROUP BY "Name"
+ORDER BY MING ASC
+LIMIT 1)
+
+SELECT *
+FROM MM
+UNION
+SELECT *
+FROM MF
+
+/*JOIN TABLES*/
+SELECT *, t2."Net_international_migrants"
+FROM twp AS t1
+JOIN twp2 AS t2
+ON t2."Name" = t1."Name" AND t2."Year" = t1."Year"
+WHERE t1."Name" not like '%->%'
+
+/*Net_migration Rate and Net_International_migrants, for all the countries in 2022 and 2023*/
+SELECT t1."Year", AVG (t1."Net_Migration_Rate"), SUM (t2."Net_international_migrants")
+FROM twp AS t1
+JOIN twp2 AS t2
+ON t2."Name" = t1."Name" AND t2."Year" = t1."Year"
+WHERE t1."Name" not like '%->%' AND t1."Year" IN (2022,2023)
+GROUP BY t1."Year"
+
+/*Net_migration Rate and Net_International_migrants, for Canada and US in 2022 and 2023*/
+SELECT t1."Year", ROUND(AVG (t1."Net_Migration_Rate"),2), SUM (t2."Net_international_migrants")
+FROM twp AS t1
+JOIN twp2 AS t2
+ON t2."Name" = t1."Name" AND t2."Year" = t1."Year" 
+WHERE t1."Name" not like '%->%' AND t1."Year" IN (2022,2023) AND t1."Name" IN ('Canada','United States')
+GROUP BY t1."Year"
